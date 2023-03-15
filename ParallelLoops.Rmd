@@ -1,0 +1,88 @@
+---
+title: "Parallel Loops"
+output: html_document
+date: "`r Sys.Date()`"
+---
+[Github](https://github.com/dvlaminck/HPC "GitHub Repository")
+
+Loading required packages:
+```{r}
+library(doParallel)
+library(parallel)
+library(foreach)
+library(dplyr)
+```
+
+Determining number of cores in my system:
+```{r}
+Pcores <- detectCores(logical = FALSE)
+print(Pcores)
+```
+```{r}
+detectCores()
+```
+
+Therefore, there are 4 physical CPUs/cores in my system, and 8 logical CPUs in my system.
+
+Generating a for loop:
+```{r}
+start.time <- Sys.time() #Starting timer to see how long code takes to run
+for (i in 1:4000) { #Run the loop 4000 times
+  data <- rnorm(100000, mean = 10, sd = 3) #Randomly sample 100000 numbers w mean 10, sd 3
+  mean_data <- mean(data) #Calculating mean of random samples
+  }
+end.time <- Sys.time() #Stopping timer 
+```
+
+Calculating time it takes to run the code:
+```{r}
+time.taken <- end.time - start.time #Finding difference between end and start timer to determine how long the code takes to run
+time.taken
+```
+
+Therefore, the for loop code took ~20.8 seconds to run.
+
+How long will multi-threading take?
+```{r}
+time.taken / Pcores
+```
+
+My computer has 4 physical cores/CPUs to run parallel code off of. Therefore, the time taken to run the loop through multi-threading should be the time it took to run it in parallel divided by the number of cores I have in my system.
+By activating multi-threading,this loop should take ~5.2 seconds to run.
+
+Activating the multi-threading:
+```{r}
+Cores <- parallel::makeCluster(detectCores())
+```
+```{r}
+doParallel::registerDoParallel(Cores)
+```
+
+Generating loop and running it in parallel:
+```{r}
+start.time1 <- Sys.time()
+foreach(i=1:4000, .combine=rbind) %dopar% {
+  data <- rnorm(100000, mean = 10, sd = 3)
+  mean_data <- mean(data)
+}
+end.time1 <- Sys.time() 
+```
+
+Calculating time it takes to run the code:
+```{r}
+time.taken1 <- end.time1 - start.time1 #Finding difference between end and start timer to determine how long the code takes to run
+time.taken1
+```
+
+Therefore, the loop ran in ~5.2 seconds in parallel, which is exactly the theoretical estimate calculated earlier, and is approximately 1/4 the time taken to run the serial loop. 
+
+NOTE: This number may have changed slightly upon knitting the document, however, when running this in the R-markdown, the time difference was 5.199995 sec.
+
+De-activate multi-threading:
+```{r}
+parallel::stopCluster(Cores) 
+```
+
+My theoretical estimate was almost exactly the same as the actual time taken to run the parallel loop. The theoretical estimate was 5.21 and the actual time taken was 5.20. 
+This is likely because I do not have many cores to run things on parallel. Theoretically, when running large parallel code on a remote computer, it would take a little amount of time to allocate code. Once submitting the job, it would have to be split and assigned across the cores, which takes time. Therefore the actual time taken is usually likely higher than the theoretical estimate.
+
